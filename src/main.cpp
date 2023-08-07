@@ -100,7 +100,7 @@ void loop() {
 
   // ******** RMP ******** //
   noInterrupts();
-  float rpm = pulseCount / (millis() - prevTime) * 60000;
+  float rpm = (pulseCount * 60000) / (millis() - prevTime);
   interrupts();
   
   pulseCount = 0;
