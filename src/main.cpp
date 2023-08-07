@@ -7,6 +7,12 @@
 #include <string>
 #include <TimeLib.h>
 
+const int inputPin = 5;
+unsigned long prevTime = 0;
+volatile unsigned long pulseCount = 0;
+volatile unsigned int rpm = 0;
+
+
 // GPIO where the Sensor is connected to
 const int oneWireBus = 4;
 
@@ -15,6 +21,8 @@ OneWire oneWire(oneWireBus);
 
 // Pass our oneWire reference to Dallas Temperature sensor 
 DallasTemperature sensors(&oneWire);
+
+// Const
 
 const char* ssid = "HotSinglesInYourArea";
 const char* password = "XA3FHAJEEFA6KKUGJE";
@@ -26,10 +34,16 @@ HTTPClient http;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org");
 
+void ICACHE_RAM_ATTR countPulse() {
+  pulseCount++;  // Increment the pulse count whenever an interrupt is triggered
+}
 
 void setup() {
   timeClient.begin();
   Serial.begin(115200);
+  prevTime = millis();
+  pinMode(inputPin, INPUT);
+  attachInterrupt(digitalPinToInterrupt(inputPin), countPulse, RISING);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -38,27 +52,9 @@ void setup() {
   Serial.println("Connected to WiFi");
 }
 
-void loop() {
 
-  // Get Temperature
-  sensors.requestTemperatures(); 
-  float tempC = sensors.getTempCByIndex(0);
-
-  // Get Timestamp
-  timeClient.update();
-
- // Get the current time
-  time_t currentTime = timeClient.getEpochTime();
-
-  // Format the time as ISO 8601
-  char isoTimestamp[25]; // ISO 8601 timestamp can be up to 24 characters
-  snprintf(isoTimestamp, sizeof(isoTimestamp), "%04d-%02d-%02dT%02d:%02d:%02dZ",
-           year(currentTime), month(currentTime), day(currentTime),
-           hour(currentTime), minute(currentTime), second(currentTime));   
-
-
-
-  if (WiFi.status() == WL_CONNECTED) {
+void myHttpRequest(char timeStamp[25], float value, int sensorId) {
+ if (WiFi.status() == WL_CONNECTED) {
     http.begin(client, serverUrl);
 
     // Set headers
@@ -73,8 +69,8 @@ void loop() {
     // Set request body
     String requestBody1 = "{\"data\":{\"value\":\"";
     String requestBody2 = "\",\"date\":\"";
-    String requestBody3 = "\",\"sensor\":5}}";
-    String requestBody = requestBody1 + String(tempC) + requestBody2 + String(isoTimestamp) + requestBody3;
+    String requestBody3 = "\",\"sensor\":"+String(sensorId)+"}}";
+    String requestBody = requestBody1 + String(value) + requestBody2 + String(timeStamp) + requestBody3;
 
 
 
@@ -92,8 +88,49 @@ void loop() {
 
     http.end();
   }
+}
+
+
+void loop() {
+
+  // ******** Temperature ******** //
+  // Get Temperature
+  sensors.requestTemperatures(); 
+  float tempC = sensors.getTempCByIndex(0);
+
+  // ******** RMP ******** //
+  noInterrupts();
+  float rpm = pulseCount / (millis() - prevTime) * 60000;
+  interrupts();
+  
+  pulseCount = 0;
+  prevTime = millis();
+
+  // Get Timestamp
+  timeClient.update();
+
+ // Get the current time
+  time_t currentTime = timeClient.getEpochTime();
+
+
+  // Format the time as ISO 8601
+  char isoTimestamp[25];
+  snprintf(isoTimestamp, sizeof(isoTimestamp), "%04d-%02d-%02dT%02d:%02d:%02dZ",
+           year(currentTime), month(currentTime), day(currentTime),
+           hour(currentTime), minute(currentTime), second(currentTime));   
+
+
+  myHttpRequest(isoTimestamp, tempC, 5);
+  myHttpRequest(isoTimestamp, rpm, 2);
+ 
 
   delay(15000); // Send the request every 15 seconds
 }
 
-int main () {}
+
+
+
+
+int main () {
+  
+}
