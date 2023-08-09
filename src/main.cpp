@@ -120,7 +120,11 @@ void loop() {
            hour(currentTime), minute(currentTime), second(currentTime));   
 
   if (rpm > 0) {
-    myHttpRequest(isoTimestamp, tempC, 5);
+    if(tempC == -127.00){  
+      Serial.println("Failed to read from DS18B20 sensor");
+    } else {
+      myHttpRequest(isoTimestamp, tempC, 5);
+    }
     myHttpRequest(isoTimestamp, rpm, 2);
   }
  
