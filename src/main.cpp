@@ -41,7 +41,6 @@ void ICACHE_RAM_ATTR countPulse() {
 void setup() {
   timeClient.begin();
   Serial.begin(115200);
-  prevTime = millis();
   pinMode(inputPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(inputPin), countPulse, RISING);
   WiFi.begin(ssid, password);
@@ -50,6 +49,7 @@ void setup() {
     Serial.println("Connecting to WiFi...");
   }
   Serial.println("Connected to WiFi");
+  prevTime = millis();
 }
 
 
@@ -119,12 +119,13 @@ void loop() {
            year(currentTime), month(currentTime), day(currentTime),
            hour(currentTime), minute(currentTime), second(currentTime));   
 
-
-  myHttpRequest(isoTimestamp, tempC, 5);
-  myHttpRequest(isoTimestamp, rpm, 2);
+  if (rpm > 0) {
+    myHttpRequest(isoTimestamp, tempC, 5);
+    myHttpRequest(isoTimestamp, rpm, 2);
+  }
  
 
-  delay(15000); // Send the request every 15 seconds
+  delay(60000); // Send the request every 15 seconds
 }
 
 
