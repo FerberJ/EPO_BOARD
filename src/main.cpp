@@ -125,7 +125,7 @@ void loop() {
   }
  
 
-  delay(60000); // Send the request every 15 seconds
+  delay(60000); // Send the request every 60 seconds
 }
 
 
